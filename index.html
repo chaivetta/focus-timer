@@ -1,0 +1,265 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Focus Timer</title>
+<meta name="description" content="A quiet focus and break timer with a sundial face.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600&family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400;1,600&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+  :root{ --paper:#f4efe6; --paper-2:#ebe3d4; --ink:#1f1b16; --mute:#6b6258; --accent:#9c3d2e; --gold:#b08d57; --line:#d9cdb8; }
+  :root[data-mode="short"]{ --accent:#4f6b3a; }
+  :root[data-mode="long"]{ --accent:#34557a; }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){ --paper:#17130f; --paper-2:#211b15; --ink:#f1e8da; --mute:#a89c8c; --gold:#c9a66b; --line:#3a3128; }
+    :root:not([data-theme="light"])[data-mode="focus"]{ --accent:#d0705d; }
+    :root:not([data-theme="light"])[data-mode="short"]{ --accent:#9bbf7f; }
+    :root:not([data-theme="light"])[data-mode="long"]{ --accent:#8fb3dc; }
+  }
+  :root[data-theme="dark"]{ --paper:#17130f; --paper-2:#211b15; --ink:#f1e8da; --mute:#a89c8c; --gold:#c9a66b; --line:#3a3128; }
+  :root[data-theme="dark"][data-mode="focus"]{ --accent:#d0705d; }
+  :root[data-theme="dark"][data-mode="short"]{ --accent:#9bbf7f; }
+  :root[data-theme="dark"][data-mode="long"]{ --accent:#8fb3dc; }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--paper);color:var(--ink)}
+  body{font-family:"Cormorant Garamond",Georgia,serif;font-size:19px;min-height:100vh;display:flex;flex-direction:column;align-items:center}
+  .wrap{width:100%;max-width:560px;padding:32px 16px 60px;text-align:center}
+  .eyebrow{font-family:Cinzel,serif;letter-spacing:.42em;font-size:12px;color:var(--mute);text-transform:uppercase}
+  h1{font-style:italic;font-weight:600;font-size:clamp(40px,9vw,58px);margin:4px 0 0;line-height:1}
+  .rule{width:100px;height:1px;background:var(--accent);margin:14px auto 22px;transition:background .4s}
+  .modes{display:inline-flex;border:1px solid var(--gold);margin-bottom:22px}
+  .modes button{font-family:Cinzel,serif;font-size:11px;letter-spacing:.22em;text-transform:uppercase;background:none;border:0;color:var(--mute);padding:10px 14px;cursor:pointer}
+  .modes button[aria-pressed="true"]{background:var(--ink);color:var(--paper)}
+  .dial{position:relative;width:min(340px,82vw);aspect-ratio:1;margin:0 auto}
+  .dial svg{width:100%;height:100%;display:block}
+  .time{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none}
+  .time .t{font-family:"JetBrains Mono",monospace;font-weight:600;font-size:clamp(40px,11.5vw,58px);letter-spacing:-.02em;line-height:1}
+  .time .m{font-style:italic;color:var(--mute);margin-top:6px}
+  .controls{display:flex;gap:10px;justify-content:center;margin:24px 0 10px;flex-wrap:wrap}
+  .btn{font-family:Cinzel,serif;font-size:12px;letter-spacing:.2em;text-transform:uppercase;background:transparent;border:1px solid var(--gold);padding:11px 18px;cursor:pointer;color:var(--ink)}
+  .btn:hover{background:var(--paper-2)}
+  .btn.primary{background:var(--ink);color:var(--paper);border-color:var(--ink);min-width:140px}
+  .keys{font-size:15px;color:var(--mute);font-style:italic}
+  kbd{font-family:"JetBrains Mono",monospace;font-size:12px;border:1px solid var(--line);padding:1px 5px;font-style:normal}
+  .tally{margin:26px auto 0;border-top:1px solid var(--line);padding-top:16px}
+  .seeds{display:flex;gap:6px;justify-content:center;flex-wrap:wrap;min-height:18px;margin:8px 0}
+  .seed{width:12px;height:12px;border:1px solid var(--gold);transform:rotate(45deg)}
+  .seed.on{background:var(--accent);border-color:var(--accent)}
+  .tally .note{color:var(--mute);font-style:italic;font-size:16px}
+  details.settings{margin-top:22px;text-align:left;border:1px solid var(--line);padding:12px 16px;background:var(--paper-2)}
+  details.settings summary{cursor:pointer;font-family:Cinzel,serif;font-size:12px;letter-spacing:.25em;text-transform:uppercase;color:var(--mute)}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}
+  .grid label{font-size:16px;color:var(--mute);display:flex;flex-direction:column;gap:4px}
+  .grid input[type=number]{font:inherit;color:var(--ink);background:var(--paper);border:1px solid var(--line);padding:6px 8px;width:100%}
+  .grid .chk{flex-direction:row;align-items:center;gap:8px}
+  .topbar{display:flex;gap:8px;justify-content:center;margin-top:14px}
+  .topbar .btn{padding:7px 12px;font-size:11px;border-color:var(--line)}
+  @media (max-width:420px){ .grid{grid-template-columns:1fr} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="eyebrow" data-i="eyebrow">An hour, measured kindly</div>
+  <h1>Focus Timer</h1>
+  <div class="rule"></div>
+
+  <div class="modes" role="group">
+    <button type="button" data-mode="focus" data-i="focus">Focus</button>
+    <button type="button" data-mode="short" data-i="short">Short break</button>
+    <button type="button" data-mode="long" data-i="long">Long break</button>
+  </div>
+
+  <div class="dial">
+    <svg viewBox="0 0 200 200" aria-hidden="true">
+      <g id="ticks"></g>
+      <circle cx="100" cy="100" r="78" fill="none" stroke="var(--line)" stroke-width="2"/>
+      <circle id="ring" cx="100" cy="100" r="78" fill="none" stroke="var(--accent)" stroke-width="4"
+              stroke-linecap="butt" transform="rotate(-90 100 100)" style="transition:stroke .4s"/>
+      <circle cx="100" cy="100" r="70" fill="none" stroke="var(--gold)" stroke-width=".6"/>
+      <g id="gnomon"><line x1="100" y1="37" x2="100" y2="22" stroke="var(--accent)" stroke-width="2" stroke-linecap="round"/><circle cx="100" cy="22" r="3" fill="var(--accent)"/></g>
+    </svg>
+    <div class="time"><div class="t" id="t">25:00</div><div class="m" id="m">Focus</div></div>
+  </div>
+
+  <div class="controls">
+    <button class="btn primary" id="start" type="button" data-i="start">Start</button>
+    <button class="btn" id="reset" type="button" data-i="reset">Reset</button>
+    <button class="btn" id="skip" type="button" data-i="skip">Skip</button>
+  </div>
+  <div class="keys"><kbd>Space</kbd> <span data-i="kStart">start / pause</span> · <kbd>R</kbd> <span data-i="kReset">reset</span> · <kbd>S</kbd> <span data-i="kSkip">skip</span></div>
+
+  <section class="tally">
+    <div class="eyebrow" data-i="today">Today</div>
+    <div class="seeds" id="seeds"></div>
+    <div class="note" id="tnote"></div>
+  </section>
+
+  <details class="settings">
+    <summary data-i="settings">Settings</summary>
+    <div class="grid">
+      <label><span data-i="sFocus">Focus (min)</span><input type="number" id="dFocus" min="1" max="180"></label>
+      <label><span data-i="sShort">Short break (min)</span><input type="number" id="dShort" min="1" max="60"></label>
+      <label><span data-i="sLong">Long break (min)</span><input type="number" id="dLong" min="1" max="90"></label>
+      <label><span data-i="sEvery">Long break every</span><input type="number" id="every" min="2" max="12"></label>
+      <label class="chk"><input type="checkbox" id="auto"> <span data-i="sAuto">Start next session automatically</span></label>
+      <label class="chk"><input type="checkbox" id="sound"> <span data-i="sSound">Chime</span></label>
+      <label class="chk"><input type="checkbox" id="notify"> <span data-i="sNotify">Desktop notification</span></label>
+    </div>
+  </details>
+  <div class="topbar">
+    <button class="btn" id="lang" type="button">TR</button>
+    <button class="btn" id="theme" type="button" data-i="theme">Theme</button>
+  </div>
+</div>
+
+<script>
+(() => {
+  const KEY = "focus-timer:v1";
+  const T = {
+    en:{ eyebrow:"An hour, measured kindly", focus:"Focus", short:"Short break", long:"Long break", start:"Start", pause:"Pause", resume:"Resume",
+         reset:"Reset", skip:"Skip", kStart:"start / pause", kReset:"reset", kSkip:"skip", today:"Today", settings:"Settings",
+         sFocus:"Focus (min)", sShort:"Short break (min)", sLong:"Long break (min)", sEvery:"Long break every", sAuto:"Start next session automatically",
+         sSound:"Chime", sNotify:"Desktop notification", theme:"Theme",
+         tally:(n,m)=> n ? `${n} session${n>1?"s":""} · ${m} minute${m===1?"":"s"} of focus` : "No sessions yet. The first one is the hardest.",
+         doneFocus:"Focus session complete. Time for a break.", doneBreak:"Break is over. Back to it.", of:(a,b)=>`session ${a} of ${b}` },
+    tr:{ eyebrow:"Nazikçe ölçülen bir saat", focus:"Odak", short:"Kısa mola", long:"Uzun mola", start:"Başla", pause:"Duraklat", resume:"Devam",
+         reset:"Sıfırla", skip:"Atla", kStart:"başla / duraklat", kReset:"sıfırla", kSkip:"atla", today:"Bugün", settings:"Ayarlar",
+         sFocus:"Odak (dk)", sShort:"Kısa mola (dk)", sLong:"Uzun mola (dk)", sEvery:"Uzun mola sıklığı", sAuto:"Sonraki oturumu otomatik başlat",
+         sSound:"Zil sesi", sNotify:"Masaüstü bildirimi", theme:"Tema",
+         tally:(n,m)=> n ? `${n} oturum · ${m} dakika odak` : "Henüz oturum yok. İlki her zaman en zoru.",
+         doneFocus:"Odak oturumu bitti. Mola zamanı.", doneBreak:"Mola bitti. Haydi devam.", of:(a,b)=>`${b} oturumun ${a}.` }
+  };
+  const store = {
+    get(k,d){ try{ const v=localStorage.getItem(k); return v?JSON.parse(v):d; }catch{ return d; } },
+    set(k,v){ try{ localStorage.setItem(k,JSON.stringify(v)); }catch{} }
+  };
+  const todayKey = () => new Date().toISOString().slice(0,10);
+  const S = Object.assign({ lang:(navigator.language||"en").startsWith("tr")?"tr":"en", theme:null,
+    dur:{focus:25,short:5,long:15}, every:4, auto:false, sound:true, notify:false, log:{} }, store.get(KEY,{}));
+  const save = () => store.set(KEY, S);
+  const t = k => T[S.lang][k];
+  const $ = s => document.querySelector(s);
+
+  let mode = "focus", count = 0;        // focus sessions done in this cycle
+  let remaining = S.dur.focus*60000, endAt = null, raf = null;
+
+  const R = 78, C = 2*Math.PI*R, ring = $("#ring");
+  ring.setAttribute("stroke-dasharray", C);
+  const ticks = $("#ticks");
+  for (let i=0;i<60;i++){
+    const a = i/60*2*Math.PI, r1 = i%5===0 ? 86 : 89, r2 = 93;
+    const l = document.createElementNS("http://www.w3.org/2000/svg","line");
+    l.setAttribute("x1",100+r1*Math.sin(a)); l.setAttribute("y1",100-r1*Math.cos(a));
+    l.setAttribute("x2",100+r2*Math.sin(a)); l.setAttribute("y2",100-r2*Math.cos(a));
+    l.setAttribute("stroke","var(--gold)"); l.setAttribute("stroke-width", i%5===0?1.4:.6);
+    ticks.appendChild(l);
+  }
+  const numerals=["XII","I","II","III","IV","V","VI","VII","VIII","IX","X","XI"];
+  numerals.forEach((n,i)=>{ if(i%6) return; const a=i/12*2*Math.PI, r=60;
+    const tx=document.createElementNS("http://www.w3.org/2000/svg","text");
+    tx.setAttribute("x",100+r*Math.sin(a)); tx.setAttribute("y",100-r*Math.cos(a)+3.5); tx.setAttribute("text-anchor","middle");
+    tx.setAttribute("font-family","Cinzel, serif"); tx.setAttribute("font-size","9"); tx.setAttribute("fill","var(--mute)"); tx.textContent=n; ticks.appendChild(tx); });
+
+  const total = () => S.dur[mode]*60000;
+  const fmt = ms => { const s=Math.ceil(ms/1000); return `${String(Math.floor(s/60)).padStart(2,"0")}:${String(s%60).padStart(2,"0")}`; };
+
+  function draw(){
+    const frac = Math.max(0, Math.min(1, remaining/total()));
+    ring.setAttribute("stroke-dashoffset", C*(1-frac));
+    $("#gnomon").setAttribute("transform", `rotate(${(1-frac)*360} 100 100)`);
+    $("#t").textContent = fmt(remaining);
+    $("#m").textContent = mode==="focus" ? `${t("focus")} · ${t("of")((count%S.every)+1, S.every)}` : t(mode);
+    document.title = `${fmt(remaining)} · ${t(mode)}`;
+    $("#start").textContent = endAt ? t("pause") : (remaining < total() ? t("resume") : t("start"));
+  }
+
+  function loop(){
+    remaining = endAt - Date.now();
+    if (remaining <= 0){ remaining = 0; draw(); finish(); return; }
+    draw(); raf = requestAnimationFrame(loop);
+  }
+  function start(){ if (endAt) return; endAt = Date.now()+remaining; unlockAudio(); loop(); }
+  function pause(){ if (!endAt) return; cancelAnimationFrame(raf); remaining = endAt-Date.now(); endAt=null; draw(); }
+  function setMode(m, keep){
+    cancelAnimationFrame(raf); endAt=null; mode=m; remaining=total();
+    document.documentElement.dataset.mode = m;
+    document.querySelectorAll(".modes button").forEach(b=>b.setAttribute("aria-pressed", b.dataset.mode===m));
+    draw();
+  }
+  function next(completed){
+    if (mode==="focus"){
+      if (completed){ const k=todayKey(); S.log[k]=S.log[k]||{n:0,min:0}; S.log[k].n++; S.log[k].min+=S.dur.focus; save(); renderTally(); }
+      count++; setMode(count % S.every === 0 ? "long" : "short");
+    } else setMode("focus");
+  }
+  function finish(){
+    cancelAnimationFrame(raf); endAt=null;
+    const wasFocus = mode==="focus";
+    if (S.sound) chime(wasFocus);
+    if (S.notify && "Notification" in window && Notification.permission==="granted"){
+      try{ new Notification("Focus Timer", { body: wasFocus ? t("doneFocus") : t("doneBreak") }); }catch{}
+    }
+    next(true);
+    if (S.auto) start();
+  }
+
+  // ---- sound: a small bell made with WebAudio ----
+  let ac=null;
+  function unlockAudio(){ try{ ac = ac || new (window.AudioContext||window.webkitAudioContext)(); if (ac.state==="suspended") ac.resume(); }catch{} }
+  function chime(up){
+    if (!ac) return;
+    const notes = up ? [659.25, 783.99, 1046.5] : [1046.5, 783.99, 659.25];
+    notes.forEach((f,i)=>{
+      const o=ac.createOscillator(), g=ac.createGain(), at=ac.currentTime+i*.28;
+      o.type="sine"; o.frequency.value=f; g.gain.setValueAtTime(0,at); g.gain.linearRampToValueAtTime(.25,at+.02); g.gain.exponentialRampToValueAtTime(.0001,at+1.6);
+      o.connect(g).connect(ac.destination); o.start(at); o.stop(at+1.7);
+    });
+  }
+
+  function renderTally(){
+    const d = S.log[todayKey()] || {n:0,min:0};
+    $("#seeds").innerHTML = Array.from({length:Math.max(S.every, d.n)},(_,i)=>`<span class="seed ${i<d.n?"on":""}"></span>`).join("");
+    $("#tnote").textContent = t("tally")(d.n, d.min);
+  }
+  function applyLang(){
+    document.documentElement.lang=S.lang;
+    document.querySelectorAll("[data-i]").forEach(el=>{ const v=t(el.dataset.i); if(typeof v==="string") el.textContent=v; });
+    $("#lang").textContent = S.lang==="en"?"TR":"EN"; draw(); renderTally();
+  }
+  function applyTheme(){ if (S.theme) document.documentElement.dataset.theme=S.theme; else delete document.documentElement.dataset.theme; }
+
+  // ---- wiring ----
+  $("#start").onclick = () => endAt ? pause() : start();
+  $("#reset").onclick = () => setMode(mode);
+  $("#skip").onclick = () => next(false);
+  document.querySelectorAll(".modes button").forEach(b => b.onclick = () => setMode(b.dataset.mode));
+  document.addEventListener("keydown", e => {
+    if (e.target.matches("input")) return;
+    if (e.code==="Space"){ e.preventDefault(); endAt?pause():start(); }
+    else if (e.key==="r"||e.key==="R") setMode(mode);
+    else if (e.key==="s"||e.key==="S") next(false);
+  });
+  const bindNum = (id, get, set) => { const el=$(id); el.value=get(); el.onchange=()=>{ const v=Math.max(+el.min, Math.min(+el.max, Math.round(+el.value||get()))); el.value=v; set(v); save(); if(!endAt) setMode(mode); renderTally(); }; };
+  bindNum("#dFocus", ()=>S.dur.focus, v=>S.dur.focus=v);
+  bindNum("#dShort", ()=>S.dur.short, v=>S.dur.short=v);
+  bindNum("#dLong",  ()=>S.dur.long,  v=>S.dur.long=v);
+  bindNum("#every",  ()=>S.every,     v=>S.every=v);
+  const bindChk = (id,key,after) => { const el=$(id); el.checked=S[key]; el.onchange=()=>{ S[key]=el.checked; save(); after&&after(el); }; };
+  bindChk("#auto","auto"); bindChk("#sound","sound", ()=>unlockAudio());
+  bindChk("#notify","notify", async el => {
+    if (el.checked && "Notification" in window && Notification.permission!=="granted"){
+      const p = await Notification.requestPermission(); if (p!=="granted"){ el.checked=false; S.notify=false; save(); }
+    }
+  });
+  $("#lang").onclick = () => { S.lang = S.lang==="en"?"tr":"en"; save(); applyLang(); };
+  $("#theme").onclick = () => { const dark = S.theme ? S.theme==="dark" : matchMedia("(prefers-color-scheme: dark)").matches; S.theme = dark?"light":"dark"; save(); applyTheme(); };
+  document.addEventListener("visibilitychange", () => { if (endAt && !document.hidden) loop(); });
+  setInterval(() => { if (endAt && document.hidden){ remaining = endAt-Date.now(); if (remaining<=0) finish(); else document.title = `${fmt(remaining)} · ${t(mode)}`; } }, 1000);
+
+  applyTheme(); setMode("focus"); applyLang();
+})();
+</script>
+</body>
+</html>
